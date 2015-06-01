@@ -1,8 +1,6 @@
 // NOTE: I am not the original editor of this macro. I only edited it to 
 // generate events as needed and plan on cleaning it up
 
-cout << "Hello world!00" << endl;
-
 #include "TF1.h"
 #include "TFile.h"
 #include "TH1.h"
@@ -14,7 +12,7 @@ cout << "Hello world!00" << endl;
 #include <iostream.h>
 #include <fstream.h>
 #include <stdlib.h>
-cout << "Hello world!0" << endl;
+
 using namespace std;
 #define PI2 2.0*3.141592653589793
 
@@ -22,59 +20,51 @@ const Int_t maxnh = 20000;
 Int_t b_npg, b_n, n;
 Float_t b_phirg;
 Float_t b_ptg[maxnh], b_etag[maxnh], b_phig[maxnh];
+bool b_reconstructed[maxnh];
 
 void proSTEGvn(int seed, int events)
 {
 
-  int tot_num=events;  //60000 events
+  //******************************************************//
+  //                BEGIN INPUT FUNCTIONS                 //
+  //******************************************************//
+  TF1 *EtaDistr = new TF1("EtaDistr","exp(-(x-2.1)^2/6.3)+exp(-(x+2.1)^2/6.3)",-2.4,2.4);
+  TF1 *PhiDistr = new TF1("PhiDistr","1+2*[0]*cos(2*x)+2*[1]*cos(3*x)+2*[2]*cos(4*x)+2*[3]*cos(5*x)+2*[4]*cos(6*x)",0,PI2);
+  TF1 *PtDistr  = new TF1("PtDistr","exp (-(x/0.90))+0.15*exp (-(x/15))", 0.1,10);  //V~=0.06
+
+  TF1 *V2vsPt = new TF1("V2vsPt","((x/[0])^[1]/(1+(x/[2])^[3]))*(.00005+(1/x)^[4])",0.1,10);
+  V2vsPt->SetParameters(4.81159,1.80783,3.69272,3.11889,0.931485);  //Real data V~0.05
+
+  TF1 *V3vsPt = new TF1("V3vsPt","((x/3.2)^2.3/(1+(x/3.4)^2.1))*(.00005+(1/x)^1.4)",0.1,10);
+  TF1 *V4vsPt = new TF1("V4vsPt","((x/4.8)^2.1/(1+(x/3.4)^2.1))*(.00005+(1/x)^1.4)",0.1,10);
+  TF1 *V5vsPt = new TF1("V5vsPt","((x/6.0)^3.2/(1+(x/11.4)^2.1))*(.00005+(1/x)^1.4)",0.1,10);
+  TF1 *V6vsPt = new TF1("V6vsPt","((x/5.6)^2.4/(1+(x/4.7)^2.1))*(.00005+(1/x)^1.4)",0.1,10);
+  //******************************************************//
+  //                 END INPUT FUNCTIONS                  //
+  //******************************************************//
+
+  TFile * f_eff = new TFile("./STEG_eff.root"); // input efficiency
+  TFile f(Form("testCluster%d.root", seed), "RECREATE", "ROOT file with histograms & tree"); // output file 
+
+  int nEvents=events;  //60000 events
   double MeanMult=200;
   double RMSMult=10;
   
-//  int ifile = atoi(getenv("IFILE"));
-  cout << "Hello world!1" << endl;
-
   //simple toy event generator
-//  TFile f(Form(";C:\root/macros/vndata_50k_%d.root", ifile), "RECREATE", "ROOT file with histograms & tree");
-  TFile f(Form("testCluster%d.root", seed), "RECREATE", "ROOT file with histograms & tree");
-
-  cout << "Hello world!2" << endl;
   TTree *tree = new TTree("tree","Event tree with a few branches");
-  cout << "Hello world!3" << endl;
-  tree->Branch("npg", &b_npg, "npg/I");   // # of particles;
-  tree->Branch("phirg", &b_phirg, "phirg/F");  // RP angle;
+  tree->Branch("npg", &b_npg, "npg/I");   // # of particles in event
+  tree->Branch("phirg", &b_phirg, "phirg/F");  // RP (reaction plane) angle;
   tree->Branch("n", &b_n, "n/I");          // same as npg;
-  tree->Branch("ptg", &b_ptg, "ptg[n]/F");  // ;
-  tree->Branch("etag", &b_etag, "etag[n]/F");
-  tree->Branch("phig", &b_phig, "phig[n]/F");
-  
-  TF1 *EtaDistr = new TF1("EtaDistr","exp(-(x-2.1)^2/6.3)+exp(-(x+2.1)^2/6.3)",-2.4,2.4);
-  //TF1 *PhiDistr = new TF1("PhiDistr","1+2*[0]*cos(x)+2*[1]*cos(2*x)+2*[2]*cos(3*x)+2*[3]*cos(4*x)+2*[4]*cos(5*x)+2*[5]*cos(6*x)",0,PI2);
-  TF1 *PhiDistr = new TF1("PhiDistr","1+2*[0]*cos(2*x)+2*[1]*cos(3*x)+2*[2]*cos(4*x)+2*[3]*cos(5*x)+2*[4]*cos(6*x)",0,PI2);
-  //TF1 *PtDistr  = new TF1("PtDistr","exp (-(x/.40))+0.0015*exp (-(x/1.5))", 0.2,10);	//V~0.12
-  TF1 *PtDistr  = new TF1("PtDistr","exp (-(x/0.90))+0.15*exp (-(x/15))", 0.1,10);	//V~=0.06
-  //  TF1 *PtDistr = new TF1("PtDistr","[0]*x*TMath::Power(1+(sqrt(x*x+[1]*[1])-[1]/[2]),-[3])",0.2,10);
-	//PtDistr->SetParameters(118.836,-0.335972,0.759243,118.836);	//Real data fit with Tsallis
-  //TF1 *V1vsEta = new TF1("V1vsEta","-exp(-(x+1)^2)/20-x/30+exp(-(x-1)^2)/20",-2.4,2.4); 
-  //TF1 *V2vsPt   = new TF1("V2vsPt","((x/3)^1.8/(1+(x/3)^1.8))*(.00005+(1/x)^0.8)",0.2,10);
-TF1 *V2vsPt = new TF1("V2vsPt","((x/[0])^[1]/(1+(x/[2])^[3]))*(.00005+(1/x)^[4])",0.1,10);
-V2vsPt->SetParameters(4.81159,1.80783,3.69272,3.11889,0.931485);	//Real data V~0.05
+  tree->Branch("ptg", &b_ptg, "ptg[n]/F");  // transverse momentum of each particle;
+  tree->Branch("etag", &b_etag, "etag[n]/F"); // eta for each particle
+  tree->Branch("phig", &b_phig, "phig[n]/F"); // phi for each particle
 
-/*  TF1 *V2vsPt = new TF1("V2vsPt", "[0]", 0.1, 10);
-  TF1 *V3vsPt = new TF1("V3vsPt", "[0]", 0.1, 10);
-  TF1 *V4vsPt = new TF1("V4vsPt", "[0]", 0.1, 10);
-  TF1 *V5vsPt = new TF1("V5vsPt", "[0]", 0.1, 10);
-  TF1 *V6vsPt = new TF1("V6vsPt", "[0]", 0.1, 10);
-	//V2vsPt->SetParameters(5,1.8,3,1.8,0.8); //V~0.06
+  // whether or not particle gets reconstructed; based on given efficiency map 
+  tree->Branch("reconstructed", &b_reconstructed, "reconstructed[n]/F"); 
 
-	V2vsPt->SetParameter(0, 0.3);
-	V3vsPt->SetParameter(0, 0);
-	V4vsPt->SetParameter(0, 0);
-	V5vsPt->SetParameter(0, 0.0);
-	V6vsPt->SetParameter(0, 0.0);*/
-TF1 *V3vsPt = new TF1("V3vsPt","((x/3.2)^2.3/(1+(x/3.4)^2.1))*(.00005+(1/x)^1.4)",0.1,10);
-TF1 *V4vsPt = new TF1("V4vsPt","((x/4.8)^2.1/(1+(x/3.4)^2.1))*(.00005+(1/x)^1.4)",0.1,10);
-TF1 *V5vsPt = new TF1("V5vsPt","((x/6.0)^3.2/(1+(x/11.4)^2.1))*(.00005+(1/x)^1.4)",0.1,10);
-TF1 *V6vsPt = new TF1("V6vsPt","((x/5.6)^2.4/(1+(x/4.7)^2.1))*(.00005+(1/x)^1.4)",0.1,10);
+  TH2F *EtaPhiEffMap = (TH2F*) f_eff->Get("rEff");
+
+  f_eff->Close();
  
   rnd = new TRandom3(seed);
   
@@ -83,7 +73,7 @@ TF1 *V6vsPt = new TF1("V6vsPt","((x/5.6)^2.4/(1+(x/4.7)^2.1))*(.00005+(1/x)^1.4)
   double neta, nphi, npt;
   int slicept;
   
-  for(int i=0; i<tot_num; i++){ 
+  for(int i=0; i<nEvents; i++){ 
     
     Psi = rnd->Uniform(0.0,PI2);
     b_phirg = Psi; 
@@ -113,11 +103,20 @@ TF1 *V6vsPt = new TF1("V6vsPt","((x/5.6)^2.4/(1+(x/4.7)^2.1))*(.00005+(1/x)^1.4)
       //PhiDistr->SetParameters(v1,v2,v3,v4,v5,v6);
       PhiDistr->SetParameters(v2,v3,v4,v5,v6);
       
-      myphi = PhiDistr->GetRandom(); // randon selection dn/dphi
+      myphi = PhiDistr->GetRandom(); // random selection dn/dphi
       myphi = myphi+Psi; // angle in lab frame -- needed for correct cumulant v2
       if (myphi>PI2) myphi=myphi-PI2; // 0 - 2*Pi
       
       b_phig[n] = myphi; // save angle in lab frame
+
+      float eff = EtaPhiEffMap->GetBinContent(EtaPhiEffMap->GetXaxis()->FindBin(myeta),
+                                   EtaPhiEffMap->GetYaxis()->FindBin(myphi));
+      float effRand = rnd->Uniform(0.0,1.0);
+      if (effRand < eff) {
+        b_reconstructed[n] = true;
+      } else {
+        b_reconstructed[n] = false;
+      }
          
       n++;
       
@@ -138,3 +137,24 @@ TF1 *V6vsPt = new TF1("V6vsPt","((x/5.6)^2.4/(1+(x/4.7)^2.1))*(.00005+(1/x)^1.4)
   cout << "THE END" << endl;
 }
 
+/* Unused Code:
+  //TF1 *PhiDistr = new TF1("PhiDistr","1+2*[0]*cos(x)+2*[1]*cos(2*x)+2*[2]*cos(3*x)+2*[3]*cos(4*x)+2*[4]*cos(5*x)+2*[5]*cos(6*x)",0,PI2);
+  //TF1 *PtDistr  = new TF1("PtDistr","exp (-(x/.40))+0.0015*exp (-(x/1.5))", 0.2,10);  //V~0.12
+  //  TF1 *PtDistr = new TF1("PtDistr","[0]*x*TMath::Power(1+(sqrt(x*x+[1]*[1])-[1]/[2]),-[3])",0.2,10);
+  //PtDistr->SetParameters(118.836,-0.335972,0.759243,118.836); //Real data fit with Tsallis
+  //TF1 *V1vsEta = new TF1("V1vsEta","-exp(-(x+1)^2)/20-x/30+exp(-(x-1)^2)/20",-2.4,2.4); 
+  //TF1 *V2vsPt   = new TF1("V2vsPt","((x/3)^1.8/(1+(x/3)^1.8))*(.00005+(1/x)^0.8)",0.2,10);
+// graph y = ((x/4.81159)^1.80783/(1+(x/3.69272)^3.11889))*(.00005+(1/x)^0.931485) from 0 to 10
+
+  TF1 *V2vsPt = new TF1("V2vsPt", "[0]", 0.1, 10);
+  TF1 *V3vsPt = new TF1("V3vsPt", "[0]", 0.1, 10);
+  TF1 *V4vsPt = new TF1("V4vsPt", "[0]", 0.1, 10);
+  TF1 *V5vsPt = new TF1("V5vsPt", "[0]", 0.1, 10);
+  TF1 *V6vsPt = new TF1("V6vsPt", "[0]", 0.1, 10);
+  //V2vsPt->SetParameters(5,1.8,3,1.8,0.8); //V~0.06
+
+  V2vsPt->SetParameter(0, 0.3);
+  V3vsPt->SetParameter(0, 0);
+  V4vsPt->SetParameter(0, 0);
+  V5vsPt->SetParameter(0, 0.0);
+  V6vsPt->SetParameter(0, 0.0);*/
