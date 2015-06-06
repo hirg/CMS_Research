@@ -15,6 +15,7 @@
 
 using namespace std;
 #define PI2 2.0*3.141592653589793
+#define PI 3.141592653589793
 
 const Int_t maxnh = 20000;
 Int_t b_npg, b_n, n;
@@ -28,7 +29,7 @@ void proSTEGvn(int seed, int events)
   //******************************************************//
   //                BEGIN INPUT FUNCTIONS                 //
   //******************************************************//
-  TF1 *EtaDistr = new TF1("EtaDistr","exp(-(x-2.1)^2/6.3)+exp(-(x+2.1)^2/6.3)",-2.4,2.4);
+  TF1 *EtaDistr = new TF1("EtaDistr","1.05635e+07 + -277240*x + -1.75912e+06*pow(x,2) + 214445*pow(x,3) + 79980.1*pow(x,4) + -29986.4*pow(x,5) + -5407.81*pow(x,6)",-2.4,2.4);
   TF1 *PhiDistr = new TF1("PhiDistr","1+2*[0]*cos(2*x)+2*[1]*cos(3*x)+2*[2]*cos(4*x)+2*[3]*cos(5*x)+2*[4]*cos(6*x)",0,PI2);
   TF1 *PtDistr  = new TF1("PtDistr","exp (-(x/0.90))+0.15*exp (-(x/15))", 0.1,10);  //V~=0.06
 
@@ -63,8 +64,6 @@ void proSTEGvn(int seed, int events)
   tree->Branch("reconstructed", &b_reconstructed, "reconstructed[n]/F"); 
 
   TH2F *EtaPhiEffMap = (TH2F*) f_eff->Get("rEff");
-
-  f_eff->Close();
  
   rnd = new TRandom3(seed);
   
@@ -105,18 +104,21 @@ void proSTEGvn(int seed, int events)
       
       myphi = PhiDistr->GetRandom(); // random selection dn/dphi
       myphi = myphi+Psi; // angle in lab frame -- needed for correct cumulant v2
-      if (myphi>PI2) myphi=myphi-PI2; // 0 - 2*Pi
+      while (myphi>PI) 
+      {
+        myphi-=PI2; // -Pi - Pi
+      }
+
+     // cout << myphi << "\t";
       
       b_phig[n] = myphi; // save angle in lab frame
 
       float eff = EtaPhiEffMap->GetBinContent(EtaPhiEffMap->GetXaxis()->FindBin(myeta),
                                    EtaPhiEffMap->GetYaxis()->FindBin(myphi));
       float effRand = rnd->Uniform(0.0,1.0);
-      if (effRand < eff) {
-        b_reconstructed[n] = true;
-      } else {
-        b_reconstructed[n] = false;
-      }
+      b_reconstructed[n] = effRand < eff;
+
+      //cout << b_reconstructed[n] << endl;
          
       n++;
       
@@ -134,8 +136,10 @@ void proSTEGvn(int seed, int events)
   f.Write();
   cout << "closing file" << endl;
   f.Close();
+  f_eff->Close();
   cout << "THE END" << endl;
 }
+
 
 /* Unused Code:
   //TF1 *PhiDistr = new TF1("PhiDistr","1+2*[0]*cos(x)+2*[1]*cos(2*x)+2*[2]*cos(3*x)+2*[3]*cos(4*x)+2*[4]*cos(5*x)+2*[5]*cos(6*x)",0,PI2);
