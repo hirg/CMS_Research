@@ -9,9 +9,9 @@
 #include "TProfile.h"
 #include "TRandom3.h"
 #include "TTree.h"
-#include <iostream.h>
-#include <fstream.h>
-#include <stdlib.h>
+#include <iostream>
+#include <fstream>
+//#include <stdlib.h>
 
 using namespace std;
 #define PI2 2.0*3.141592653589793
@@ -25,6 +25,8 @@ bool b_reconstructed[maxnh];
 
 void proSTEGvn(int seed, int events)
 {
+
+  bool useThreeDim = false;
 
   //******************************************************//
   //                BEGIN INPUT FUNCTIONS                 //
@@ -43,8 +45,18 @@ void proSTEGvn(int seed, int events)
   //******************************************************//
   //                 END INPUT FUNCTIONS                  //
   //******************************************************//
+  TH2F * EtaPhiEffMap2;
+  TH3F * EtaPhiEffMap3;
 
-  TFile * f_eff = new TFile("./STEG_eff.root"); // input efficiency
+  TFile * f_eff;
+
+  if (useThreeDim) {
+     f_eff = new TFile("./STEG_eff_3D.root"); // input efficiency
+     EtaPhiEffMap3 = (TH3F*) f_eff->Get("rEff");
+  } else {
+     f_eff = new TFile("./STEG_eff.root"); // input efficiency
+     EtaPhiEffMap2 = (TH2F*) f_eff->Get("rEff");
+  }
   TFile f(Form("testCluster%d.root", seed), "RECREATE", "ROOT file with histograms & tree"); // output file 
 
   int nEvents=events;  //60000 events
@@ -62,9 +74,6 @@ void proSTEGvn(int seed, int events)
 
   // whether or not particle gets reconstructed; based on given efficiency map 
   tree->Branch("reconstructed", &b_reconstructed, "reconstructed[n]/F"); 
-
-  TH2F *EtaPhiEffMap = (TH2F*) f_eff->Get("rEff");
- 
   rnd = new TRandom3(seed);
   
   double v1, v2, v3, v4, v5, v6, ph, myphi, mypt, myeta, phi0, Psi;
@@ -112,11 +121,19 @@ void proSTEGvn(int seed, int events)
      // cout << myphi << "\t";
       
       b_phig[n] = myphi; // save angle in lab frame
-
-      float eff = EtaPhiEffMap->GetBinContent(EtaPhiEffMap->GetXaxis()->FindBin(myeta),
-                                   EtaPhiEffMap->GetYaxis()->FindBin(myphi));
+      float eff;
+      if (useThreeDim) {
+            eff = EtaPhiEffMap3->GetBinContent(  EtaPhiEffMap3->GetXaxis()->FindBin(myeta),
+                                                 EtaPhiEffMap3->GetYaxis()->FindBin(myphi),
+                                                 EtaPhiEffMap3->GetZaxis()->FindBin(mypt) );
+      } else {
+            eff = EtaPhiEffMap2->GetBinContent(  EtaPhiEffMap2->GetXaxis()->FindBin(myeta),
+                                                 EtaPhiEffMap2->GetYaxis()->FindBin(myphi) );
+      }
       float effRand = rnd->Uniform(0.0,1.0);
       b_reconstructed[n] = effRand < eff;
+
+     // cout << eff << "\t" << b_reconstructed[n] << endl;
 
       //cout << b_reconstructed[n] << endl;
          
