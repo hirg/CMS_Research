@@ -26,7 +26,8 @@ bool b_reconstructed[maxnh];
 void proSTEGvn(int seed, int events)
 {
 
-  bool useThreeDim = false;
+  bool useThreeDim = false; // true: 3D efficiency map is used
+                            // false: 2D efficiency map is used
 
   //******************************************************//
   //                BEGIN INPUT FUNCTIONS                 //
@@ -51,10 +52,10 @@ void proSTEGvn(int seed, int events)
   TFile * f_eff;
 
   if (useThreeDim) {
-     f_eff = new TFile("./STEG_eff_3D.root"); // input efficiency
-     EtaPhiEffMap3 = (TH3F*) f_eff->Get("rEff");
+     f_eff = new TFile("./STEG_eff_3D.root"); // input 3D efficiency map location (if applicable)
+     EtaPhiEffMap3 = (TH3F*) f_eff->Get("rEff"); 
   } else {
-     f_eff = new TFile("./STEG_eff.root"); // input efficiency
+     f_eff = new TFile("./STEG_eff.root"); // input 2D efficiency map location (if applicable)
      EtaPhiEffMap2 = (TH2F*) f_eff->Get("rEff");
   }
   TFile f(Form("testCluster%d.root", seed), "RECREATE", "ROOT file with histograms & tree"); // output file 
